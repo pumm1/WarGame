@@ -24,6 +24,7 @@ import javax.swing.WindowConstants;
 import units.GameObject;
 import units.House;
 import units.Squad;
+import units.Tank;
 import units.Tree;
 
 public class Game extends JFrame implements KeyListener {
@@ -45,22 +46,12 @@ public class Game extends JFrame implements KeyListener {
     private InputStream is1 = getClass().getClassLoader().getResourceAsStream("hole0.png");
     private BufferedImage hole0 = ImageIO.read(is1);
     private ImageIcon hole = new ImageIcon(hole0);
-//    private InputStream squad0hole = getClass().getClassLoader().getResourceAsStream("squad0hole.png");
-//    private BufferedImage s0him = ImageIO.read(squad0hole);
-//    private ImageIcon s0h = new ImageIcon(s0him);
-//    private InputStream squad02hole = getClass().getClassLoader().getResourceAsStream("squad02hole.png");
-//    private BufferedImage s02him = ImageIO.read(squad02hole);
-//    private ImageIcon s02h = new ImageIcon(s02him);
-//    private InputStream squad1hole = getClass().getClassLoader().getResourceAsStream("squad1hole.png");
-//    private BufferedImage s1him = ImageIO.read(squad1hole);
-//    private ImageIcon s1h = new ImageIcon(s1him);
-//    private InputStream squad12hole = getClass().getClassLoader().getResourceAsStream("squad12hole.png");
-//    private BufferedImage s12him = ImageIO.read(squad12hole);
-//    private ImageIcon s12h = new ImageIcon(s12him);
     private Random rand = new Random();
     private Player p0 = new Player(0);
     private Player p1 = new Player(1);
     private Squad chosen;
+    private Squad temp;
+    private Tank tempTank;
     private JTextArea txt;
 
     public Game() throws IOException {
@@ -108,6 +99,7 @@ public class Game extends JFrame implements KeyListener {
         int y = 0;
         p0 = new Player(0);
         p1 = new Player(1);
+
         while (p0.getUnits().size() < 6) {
             x = rand.nextInt(7) + 2;
             y = rand.nextInt(7) + 2;
@@ -118,7 +110,17 @@ public class Game extends JFrame implements KeyListener {
                 units[x][y] = s;
             }
         }
-        t = 0;
+
+        while (p0.getUnits().size() < 8) {
+            x = rand.nextInt(7) + 2;
+            y = rand.nextInt(7) + 2;
+            if (units[x][y] == null && objects[x][y] == null) {
+                Tank tank = new Tank(x, y);
+                tank.setOwner(0);
+                p0.addUnit(tank);
+                units[x][y] = tank;
+            }
+        }
         while (p1.getUnits().size() < 6) {
             x = rand.nextInt(8) + 10;
             y = rand.nextInt(8) + 10;
@@ -129,7 +131,17 @@ public class Game extends JFrame implements KeyListener {
                 units[x][y] = s;
             }
         }
-
+        while (p1.getUnits().size() < 8) {
+            x = rand.nextInt(8) + 10;
+            y = rand.nextInt(8) + 10;
+            if (units[x][y] == null && objects[x][y] == null) {
+                Tank tank = new Tank(x, y);
+                tank.setOwner(1);
+                p1.addUnit(tank);
+                units[x][y] = tank;
+            }
+        }
+        t = 0;
         int i = 0;
 
         while (t < 35) { /////GENERATE MAP//////////  
@@ -220,9 +232,7 @@ public class Game extends JFrame implements KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-            chosen = null;
             if (turn == 1) {
-                
                 console += "\nBlue side's turn";
                 checkConsole();
                 turn = 0;
@@ -233,6 +243,7 @@ public class Game extends JFrame implements KeyListener {
                 turn = 1;
                 ap = p1.getAp();
             }
+            chosen = null;
         } else if (e.getKeyCode() == KeyEvent.VK_CONTROL) {
             console += "\nCancel order";
             checkConsole();
@@ -268,17 +279,25 @@ public class Game extends JFrame implements KeyListener {
             /////////CHOSING SQUAD//////////////
             if (arty == 0) {
                 if (units[i][j] != null) {
-                    if (units[i][j] instanceof Squad) {
+                    if (units[i][j] instanceof Tank) {
+                        tempTank = (Tank) units[i][j];
+                        boolean d = tempTank.destroyed();
+                        if (tempTank.getOwner() == turn && !d) {
+                            console += "\nUnit chosen";
+                            checkConsole();
+                            chosen = tempTank;
+                        }
+                    } else if (units[i][j] instanceof Squad) {
 
-                        Squad temp = (Squad) units[i][j];
+                        temp = (Squad) units[i][j];
+
                         if (temp.getOwner() == turn) {
                             console += "\nUnit chosen";
                             checkConsole();
                             chosen = temp;
-                        } else {
-                            console += "\nCan't give orders for enemy units..";
-                            checkConsole();
                         }
+                        temp = null;
+                        tempTank = null;
                     }
                 }
             } else {     ////////ORDERING ARTILLERY////////
@@ -313,27 +332,53 @@ public class Game extends JFrame implements KeyListener {
                 }
                 explosion[i][j] = 1;
                 if (units[i][j] != null) {
-                    Squad temp = (Squad) units[i][j];
-                    temp.getHit(explosion);
-                    if (temp.getHealth() > 0) {
-                        console += "\nDirect hit, still alive";
-                        checkConsole();
-//                        if (temp.getOwner() == 0) {
-//                            squares[i][j].setIcon(s02h);
-//                        } else {
-//                            squares[i][j].setIcon(s12h);
-//                        }
-                    } else {
-                        console += "\nDirect hit, target is destroyed";
-                        checkConsole();
-                        units[i][j] = null;
+                    if (units[i][j] instanceof Squad && !(units[i][j] instanceof Tank)) {
+                        temp = (Squad) units[i][j];
+                        temp.getHit(explosion);
+                        if (temp.getHealth() > 0) {
+                            console += "\nDirect hit, still alive";
+                            checkConsole();
+                            temp = null;
+                        } else {
+                            console += "\nDirect hit, target is destroyed";
+                            checkConsole();
+//                            if (units[i][j] instanceof Tank) {
+//                                temp = (Tank) units[i][j];
+//                                squares[i][j].setIcon(temp.getIcon());
+//                                tempTank = null;
+//                            } else {
+                            units[i][j] = null;
+                            temp = null;
+                            squares[i][j].setIcon(hole);
+//                            }
+
+                        }
+                    } else if (units[i][j] instanceof Tank) {
+                        tempTank = (Tank) units[i][j];
+                        tempTank.getHit(explosion);
+                        if (tempTank.getHealth() > 0) {
+                            console += "\nDirect hit, still alive";
+                            checkConsole();
+                            squares[i][j].setIcon(tempTank.getIcon());
+                        } else {
+                            console += "\nDirect hit, target is destroyed";
+                            checkConsole();
+                            squares[i][j].setIcon(tempTank.getIcon());
+                        }
                     }
+                    temp = null;
+                    tempTank = null;
                 } else {
                     console += "\nNothing got hit..";
                     checkConsole();
                 }
 
                 objects[i][j] = null;
+//                if (units[i][j] == null) {
+//                    squares[i][j].setIcon(hole);
+//                } else {
+//                    squares[i][j].setIcon(units[i][j].getIcon());
+//                }
                 if (units[i][j] == null) {
                     squares[i][j].setIcon(hole);
                 } else {
@@ -347,26 +392,57 @@ public class Game extends JFrame implements KeyListener {
             if (units[i][j] == null && objects[i][j] == null) { //won't allow overlapping!
                 ///////////////MOVING//////////////
                 if (Math.abs(chosen.getX() - i) + Math.abs(chosen.getY() - j) <= ap) {
-                    int t = Math.abs(chosen.getX() - i) + Math.abs(chosen.getY() - j);
-                    ap = ap - t;
-                    System.out.println("AP: " + ap);
-                    console += "\nAP: " + ap;
-                    checkConsole();
-                    int x = chosen.getX();
-                    int y = chosen.getY();
+                    if (chosen instanceof Tank) {
+                        Tank tem = (Tank) chosen;
+                        boolean canMove = tem.canMove();
+                        if (canMove) {
+                            int t = Math.abs(chosen.getX() - i) + Math.abs(chosen.getY() - j);
+                            ap = ap - t;
+                            System.out.println("AP: " + ap);
+                            console += "\nAP: " + ap;
+                            checkConsole();
+                            int x = chosen.getX();
+                            int y = chosen.getY();
 
-                    chosen.moveTo(i, j, explosion);
-                    units[x][y] = null;
-                    units[i][j] = chosen;
-                    if (explosion[x][y] == 0) {
-                        squares[x][y].setIcon(ground1);
+                            chosen.moveTo(i, j, explosion);
+                            units[x][y] = null;
+                            units[i][j] = chosen;
+                            if (explosion[x][y] == 0) {
+                                squares[x][y].setIcon(ground1);
+                            } else {
+                                squares[x][y].setIcon(hole);
+                            }
+                            squares[i][j].setIcon(units[i][j].getIcon());
+                            x = chosen.getX();
+                            y = chosen.getY();
+                            chosen = null;
+                        } else {
+                            console += "\nChosen unit is stuck";
+                            checkConsole();
+                            chosen = null;
+                        }
                     } else {
-                        squares[x][y].setIcon(hole);
+                        int t = Math.abs(chosen.getX() - i) + Math.abs(chosen.getY() - j);
+                        ap = ap - t;
+                        System.out.println("AP: " + ap);
+                        console += "\nAP: " + ap;
+                        checkConsole();
+                        int x = chosen.getX();
+                        int y = chosen.getY();
+
+                        chosen.moveTo(i, j, explosion);
+                        units[x][y] = null;
+                        units[i][j] = chosen;
+                        if (explosion[x][y] == 0) {
+                            squares[x][y].setIcon(ground1);
+                        } else {
+                            squares[x][y].setIcon(hole);
+                        }
+                        squares[i][j].setIcon(units[i][j].getIcon());
+                        x = chosen.getX();
+                        y = chosen.getY();
+                        chosen = null;
                     }
-                    squares[i][j].setIcon(units[i][j].getIcon());
-                    x = chosen.getX();
-                    y = chosen.getY();
-                    chosen = null;
                 } else {
                     console += "\nNot enough AP..";
                     checkConsole();
@@ -374,47 +450,88 @@ public class Game extends JFrame implements KeyListener {
                 }
             } else if (units[i][j] != null && units[i][j] instanceof Squad) {
                 ///////ATTACKING//////////
-                Squad t = (Squad) units[i][j];
-                if (t.getOwner() != chosen.getOwner()) {
-                    if (ap >= 4) {
-                        if (Math.abs(t.getX() - chosen.getX()) + Math.abs(t.getY() - chosen.getY()) <= chosen.getRange()) {
-                            if (canHit(chosen, i, j)) {
-                                int roll = rand.nextInt(20);
-                                if (roll > 10) {
-                                    chosen.attackPlatoon(t, explosion);
-                                    console += "\nTarget is hit";
-                                    checkConsole();
-                                    squares[i][j].setIcon(t.getIcon());
-                                    if (t.getHealth() == 0) { /////////SQUAD DESTROYED//////////
-                                        console += "\nTarget destroyed";
-                                        checkConsole();
-                                        units[i][j] = null;
-                                        squares[i][j].setIcon(ground1);
-                                    } else {
-                                        console += "\nTarget HP left: " + t.getHealth();
-                                        checkConsole();
-                                    }
-                                } else {
-                                    console += "\nMiss!";
-                                    checkConsole();
-                                    t.underFire(explosion);
-                                    squares[t.getX()][t.getY()].setIcon(t.getIcon());
-                                }
-                                ap -= 4;
-                                chosen = null;
-                                console += "\nAP left: " + ap;
-                                checkConsole();
+                if (units[i][j] instanceof Squad && !(units[i][j] instanceof Tank)) {
+                    Squad t = (Squad) units[i][j];
 
+                    if (t.getOwner() != chosen.getOwner()) {
+                        if (ap >= 4) {
+                            if (Math.abs(t.getX() - chosen.getX()) + Math.abs(t.getY() - chosen.getY()) <= chosen.getRange()) {
+                                if (canHit(chosen, i, j)) {
+                                    int roll = rand.nextInt(20);
+                                    if (roll > 10) {
+                                        chosen.attackPlatoon(t, explosion);
+                                        console += "\nTarget is hit";
+                                        checkConsole();
+                                        squares[i][j].setIcon(t.getIcon());
+                                        if (t.getHealth() == 0) { /////////SQUAD DESTROYED//////////
+                                            console += "\nTarget destroyed";
+                                            checkConsole();
+                                            units[i][j] = null;
+                                            squares[i][j].setIcon(ground1);
+                                        } else {
+                                            console += "\nTarget HP left: " + t.getHealth();
+                                            checkConsole();
+                                        }
+                                    } else {
+                                        console += "\nMiss!";
+                                        checkConsole();
+                                        t.underFire(explosion);
+                                        squares[t.getX()][t.getY()].setIcon(t.getIcon());
+                                    }
+                                    ap -= 4;
+                                    chosen = null;
+                                    console += "\nAP left: " + ap;
+                                    checkConsole();
+
+                                }
+                            } else {
+                                console += "\nNot enough range";
+                                checkConsole();
                             }
                         } else {
-                            console += "\nNot enough range";
+                            console += "\nNot enough AP";
                             checkConsole();
                         }
-                    } else {
-                        console += "\nNot enough AP";
-                        checkConsole();
-                    }
 
+                    }
+                } else if (units[i][j] instanceof Tank) {
+                    tempTank = (Tank) units[i][j];
+                    if (tempTank.getOwner() != chosen.getOwner()) {
+                        if (ap >= 4) {
+                            if (Math.abs(tempTank.getX() - chosen.getX()) + Math.abs(tempTank.getY() - chosen.getY()) <= chosen.getRange()) {
+                                if (canHit(chosen, i, j)) {
+                                    int roll = rand.nextInt(20);
+                                    if (roll > 10) {
+                                        chosen.attackPlatoon(tempTank, explosion);
+                                        console += "\nTarget is hit";
+                                        checkConsole();
+                                        squares[i][j].setIcon(tempTank.getIcon());
+                                        if (tempTank.getHealth() == 0) { /////////TANK DESTROYED//////////
+                                            console += "\nTarget destroyed";
+                                            checkConsole();
+                                            squares[i][j].setIcon(tempTank.getIcon());
+                                        } else {
+                                            console += "\nTarget HP left: " + tempTank.getHealth();
+                                            checkConsole();
+                                        }
+                                    } else {
+                                        console += "\nMiss!";
+                                        checkConsole();
+                                        tempTank.underFire(explosion);
+                                        squares[tempTank.getX()][tempTank.getY()].setIcon(tempTank.getIcon());
+                                    }
+                                    ap -= 4;
+                                    chosen = null;
+                                    console += "\nAP left: " + ap;
+                                    checkConsole();
+
+                                }
+                            } else {
+                                console += "\nNot enough range";
+                                checkConsole();
+                            }
+                        }
+                    }
                 }
             }
 
